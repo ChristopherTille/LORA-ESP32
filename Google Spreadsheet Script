@@ -1,0 +1,25 @@
+var id = 'GSSID';
+
+function doGet(e) {               
+
+  if (e.parameter == undefined) {   
+    result = 'No Paramters';
+  }
+  else {
+    var sheet = SpreadsheetApp.openById(id).getActiveSheet();
+    var newRow = sheet.getLastRow() + 1;
+    var rowData = [];        
+    rowData[0] = new Date(); 
+    
+    for (var param in e.parameter) {    
+      var value = e.parameter[param];  
+      rowData[parseInt(param)] = value;
+    } 
+    
+    var newRange = sheet.getRange(newRow, 1, 1, rowData.length);
+    newRange.setValues([rowData]);    
+    var result =  'Ok'
+  }
+
+  return ContentService.createTextOutput(result);
+}
