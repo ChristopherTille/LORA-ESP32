@@ -19,7 +19,7 @@
 #define DHTTYPE DHT22 /* define type of sensor */
 
 #define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  15        /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP  60        /* Time ESP32 will go to sleep (in seconds) */
 
 DHT dht(DHTPIN, DHTTYPE); /* initialize DHT sensor */
 BH1750 lightMeter; /* initialize BH1750 */
@@ -29,46 +29,53 @@ ADS1115_WE adc2 = ADS1115_WE(I2C_ADDRESS2); /*initialize ADS object */
 
 int pumpcounter = 0;
 
-
 void setup() {
   Serial.begin(9600); /* initialize Serial Monitor */
+  Serial.println();
+  Serial.println("____________________________");
   Serial.println("Started microcontroller.");
   SPI.begin(5, 19, 27, 18);
   LoRa.setPins(ss, rst, dio0);
   if (!LoRa.begin(868E6)) {
-    Serial.println("Start of LoRa failed!");
+    Serial.println("Error 1: Start of LoRa failed!");
     while (1);
   }
+  Serial.println("Check 1: LoRa initialized.");
+  delay(3000);
+
+  pinMode(23, OUTPUT); /* set GPO for water pump relay */
+  pinMode(25, OUTPUT); /* set GPO for powering ADC pins */
+  pinMode(12, OUTPUT); /* set GPO for powering ADS1115 and BH1750 (I2C) inputs */
+
+  digitalWrite(12, HIGH);
+  Serial.println("Check 2: ADS1115 and BH1750 receiving 5V.");
+  delay(3000);
+
   Wire.begin(21, 22);
   lightMeter.begin(); /* start BH1750 sensor */
   dht.begin(); /* start DHT22 sensor */
 
-  pinMode(23, OUTPUT); /* set GPIO for water pump relay */
-  pinMode(25, OUTPUT); /* set GPIO for powering ADC pins */
-  pinMode(12, OUTPUT); /* set GPIO for powering ADS (I2C) inputs */
-  
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR); /* set deep sleep timer to specified seconds */ 
   
   if(!adc1.init()){
-    Serial.println("ADS1115 not connected!");
+    Serial.println("Error 2: ADS1115 1 not initialized!");
   }
   
   adc1.setVoltageRange_mV(ADS1115_RANGE_6144); /* comment line/change parameter to change range */
   adc2.setVoltageRange_mV(ADS1115_RANGE_6144); /* comment line/change parameter to change range */
 
-  int no_of_readings = 7;
-  float lux = 0.0;
-  float air_humidity = 0.0;
-  float temperature = 0.0;
-  float soil_moisture_10 = 0.0;
-  float soil_moisture_20 = 0.0;
-  float soil_moisture_11 = 0.0;
-  float soil_moisture_21 = 0.0;
-  float soil_moisture_12 = 0.0;
-  float soil_moisture_22 = 0.0;
-  float soil_moisture_13 = 0.0;
-  float soil_moisture_23 = 0.0;
-  
+  int no_of_readings = 10; /* set amount of sensor values per measurement */
+  float lux = 0.0; /* storing vlaue for light intensity (BH1750) */
+  float air_humidity = 0.0; /* storing value for air humidity (DHT22) */
+  float temperature = 0.0; /* storing value for air temperature (DHT22) */
+  float soil_moisture_11 = 0.0; /* storing value for soil humidity sensor 1 of raised bed 1*/
+  float soil_moisture_21 = 0.0; /* storing value for soil humidity sensor 1 of raised bed 2*/
+  float soil_moisture_12 = 0.0; /* storing value for soil humidity sensor 2 of raised bed 1*/
+  float soil_moisture_22 = 0.0; /* storing value for soil humidity sensor 2 of raised bed 2*/
+  float soil_moisture_13 = 0.0; /* storing value for soil humidity sensor 3 of raised bed 1*/
+  float soil_moisture_23 = 0.0; /* storing value for soil humidity sensor 3 of raised bed 2*/
+
+  /* loop to average readings */
   for (int i = 0; i < no_of_readings; i++) {
     lux += lightMeter.readLightLevel(); /* read light sensor */
     air_humidity += dht.readHumidity(); /* read air humidity sensor */
