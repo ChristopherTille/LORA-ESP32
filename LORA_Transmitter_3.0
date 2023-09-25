@@ -58,11 +58,27 @@ void setup() {
   esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR); /* set deep sleep timer to specified seconds */ 
   
   if(!adc1.init()){
-    Serial.println("Error 2: ADS1115 1 not initialized!");
+    Serial.println("Error 3: ADS1115 NO1 not connected!");
+  }else{
+    Serial.println("Check 3: ADS 1115 NO1 initialized.");
+  }
+  
+  if(!adc2.init()){
+    Serial.println("Error 4: ADS1115 NO2 not connected!");
+  }
+  else{
+    Serial.println("Check 4: ADS1115 NO2 initialized.");
   }
   
   adc1.setVoltageRange_mV(ADS1115_RANGE_6144); /* comment line/change parameter to change range */
   adc2.setVoltageRange_mV(ADS1115_RANGE_6144); /* comment line/change parameter to change range */
+
+  scanI2C(100000);
+  //scanI2C(400000);  
+  Serial.println("****************************");
+  Serial.println();
+  delay(3000);
+  Serial.println("Check 5: Scan complete.");
 
   int no_of_readings = 10; /* set amount of sensor values per measurement */
   float lux = 0.0; /* storing vlaue for light intensity (BH1750) */
@@ -79,30 +95,34 @@ void setup() {
   for (int i = 0; i < no_of_readings; i++) {
     lux += lightMeter.readLightLevel(); /* read light sensor */
     air_humidity += dht.readHumidity(); /* read air humidity sensor */
-    temperature += dht.readTemperature();
-    soil_moisture_10 += readChannel1(ADS1115_COMP_0_GND);
-    soil_moisture_20 += readChannel2(ADS1115_COMP_0_GND);
-    soil_moisture_11 += readChannel1(ADS1115_COMP_1_GND);
-    soil_moisture_21 += readChannel2(ADS1115_COMP_1_GND);
-    soil_moisture_12 += readChannel1(ADS1115_COMP_2_GND);
-    soil_moisture_22 += readChannel2(ADS1115_COMP_2_GND);
-    soil_moisture_13 += readChannel1(ADS1115_COMP_3_GND);
-    soil_moisture_23 += readChannel2(ADS1115_COMP_3_GND);
+    temperature += dht.readTemperature(); /*read temperature sensor */
+    soil_moisture_11 += readChannel1(ADS1115_COMP_0_GND); /* sum up sensor value */
+    soil_moisture_21 += readChannel2(ADS1115_COMP_0_GND);
+    soil_moisture_12 += readChannel1(ADS1115_COMP_1_GND);
+    soil_moisture_22 += readChannel2(ADS1115_COMP_1_GND);
+    soil_moisture_13 += readChannel1(ADS1115_COMP_2_GND);
+    soil_moisture_23 += readChannel2(ADS1115_COMP_2_GND);
+    soil_moisture_14 += readChannel1(ADS1115_COMP_3_GND);
+    soil_moisture_24 += readChannel2(ADS1115_COMP_3_GND);
     
     Serial.println("Reading loop NO: "+String(i));
-    Serial.println("average lux: "+String((lux/(i+1))));
-    Serial.println("average humid: "+String((air_humidity/(i+1))));
-    Serial.println("average temp: "+String((temperature/(i+1))));
-    Serial.println("average s11: "+String((soil_moisture_10/(i+1))));
-    Serial.println("average s12: "+String((soil_moisture_20/(i+1))));
+    Serial.println("average light intensity "+String((lux/(i+1))));
+    Serial.println("average humidity: "+String((air_humidity/(i+1))));
+    Serial.println("average temperature: "+String((temperature/(i+1))));
+    Serial.println("average soil moisture sensor 1 in 1: "+String((soil_moisture_11/(i+1))));
+    Serial.println("average soil moisture sensor 1 in 2: "+String((soil_moisture_21/(i+1))));
+    Serial.println("average soil moisture sensor 2 in 1: "+String((soil_moisture_12/(i+1))));
+    Serial.println("average soil moisture sensor 2 in 2: "+String((soil_moisture_22/(i+1))));    
+    Serial.println("average soil moisture sensor 3 in 1: "+String((soil_moisture_13/(i+1))));
+    Serial.println("average soil moisture sensor 3 in 2: "+String((soil_moisture_23/(i+1))));
     delay(3000);
+    Serial.println("__________________________");
   }
+  Serial.println("Check 6: Read sensors.");
 
   String luxs((lux/no_of_readings));
   String air_humiditys((air_humidity/no_of_readings));
   String temperatures((temperature/no_of_readings));
-  String soil_moisture_10s((soil_moisture_10/no_of_readings));
-  String soil_moisture_20s((soil_moisture_20/no_of_readings));
   String soil_moisture_11s((soil_moisture_11/no_of_readings));
   String soil_moisture_21s((soil_moisture_21/no_of_readings));
   String soil_moisture_12s((soil_moisture_12/no_of_readings));
@@ -111,15 +131,27 @@ void setup() {
   String soil_moisture_23s((soil_moisture_23/no_of_readings));
 
   delay(1000);
-  String strData = "tag=adc_A0&1value="+String(lux/no_of_readings,2)+"&2value="+String(air_humidity/no_of_readings,2)+"&3value="+String(soil_moisture_10/no_of_readings,2)+"&4value="+String(temperature/no_of_readings,2);
+  String strData = "tag=adc_A0&1value="+String(lux/no_of_readings,2)+"&2value="+String(air_humidity/no_of_readings,2)+"&3value="+String(soil_moisture_11/no_of_readings,2)+"&4value="+String(temperature/no_of_readings,2);
   LoRa.beginPacket();
-  LoRa.print(strData);
+  /* LoRa.print(strData); */
+  LoRa.print("Lux: ");
+  LoRa.println(lux);
+  LoRa.print("Humid: ");
+  LoRa.println(air_humidity);
+  LoRa.print("Temp: ");
+  LoRa.println(temperature);
+  LoRa.print("Soil1: ");
+  LoRa.println(soil_moisture_11);
+  LoRa.print("Soil2: ");
+  LoRa.println(soil_moisture_21);
   LoRa.endPacket();
 
   delay(1000);
   Serial.println(strData);
-  Serial.println("Data uploaded.");
+  Serial.println("Check 7: Data uploaded.");
+  digitalWrite(12, LOW);
   delay(1000);
+  Serial.println("Entering Deep Sleep.");
   esp_deep_sleep_start();
 }
 
@@ -152,4 +184,52 @@ float average (float * array, int len){
     sum += array[i];
     
   }
+}
+
+void scanI2C(long frequency){
+  String normal = "standard mode (100 kHz):";
+  String fast = "fast mode (400 kHz):";
+  String fastPlus = "fast mode plus (1 MHz):";
+  String highSpeed = "high speed mode (3.4 MHz):";
+  String ultraSpeed = "ultra fast mode (5.0 MHz):";
+  String defaultStr = " !!!!! Unzulässige Frequenz !!!!!";
+  bool error = true;
+  bool addressFound = false;
+
+  Serial.print("Scanne im ");
+  switch(frequency){
+    case 100000:
+      Serial.println(normal);
+      break;
+    case 400000:
+      Serial.println(fast);
+      break;
+    case 1000000:
+      Serial.println(fastPlus);
+      break;
+    case 3400000:
+      Serial.println(highSpeed);
+      break;
+    case 5000000:
+      Serial.println(ultraSpeed);
+      break;
+    default:
+      Serial.println(defaultStr);
+      break;
+  }
+  
+  Wire.setClock(frequency);
+  for(int i=1; i<128; i++){
+    Wire.beginTransmission(i);
+    error = Wire.endTransmission();
+    if(error == 0){
+      addressFound = true;
+      Serial.print("0x");
+      Serial.println(i,HEX);
+    }
+  }
+  if(!addressFound){
+    Serial.println("Keine Adresse erkannt");
+  }
+  Serial.println();
 }
